@@ -1,22 +1,97 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Atmel Studio Solution File, Format Version 11.00
-VisualStudioVersion = 14.0.23107.0
-MinimumVisualStudioVersion = 10.0.40219.1
-Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "SelfBalanceBot", "SelfBalanceBot\SelfBalanceBot.cproj", "{DCE6C7E3-EE26-4D79-826B-08594B9AD897}"
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|AVR = Debug|AVR
-		Release|AVR = Release|AVR
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|AVR.ActiveCfg = Debug|AVR
-		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Debug|AVR.Build.0 = Debug|AVR
-		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.ActiveCfg = Release|AVR
-		{DCE6C7E3-EE26-4D79-826B-08594B9AD897}.Release|AVR.Build.0 = Release|AVR
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-EndGlobal
+/*
+ * UART Test.c
+ *
+ * Created: 24-07-2019 05:23:17 PM
+ * Author : PARTH
+ */ 
+
+#include <stdlib.h>
+#include <string.h>
+#include <avr/io.h>
+#include <math.h>
+#include <avr/interrupt.h>
+//#include <avr/interrupt.h>
+#include "i2chw/i2cmaster.h"
+#include "mpu6050/mpu6050.h"
+
+#define F_CPU 16000000UL
+#include <util/delay.h>
+#define baudrate 9600
+#define FOSC 8000000UL
+#define UBRR 51
+
+//int intdata;
+
+void uart_init (void)
+{
+	UBRR0H = (UBRR >> 8);
+	UBRR0L = UBRR;
+	UCSR0C |=(1<<UCSZ00)|(1<<UCSZ01);
+	UCSR0B |=(1<<RXEN0)|(1<<TXEN0);
+	
+}
+ 
+void uart_transmit (char data)
+{
+	while (!( UCSR0A & (1<<UDRE0)));
+	UDR0 = data;
+	
+}
+
+char uart_receive (void)
+{
+	while (!( UCSR0A & (1<<RXC0)));
+	return UDR0;
+}
+
+void usart_transmit_string(char *str)
+{
+
+	while(*str > 0)
+	{
+		
+		uart_transmit(*str);
+		str++;
+	}
+}
+
+int main(void)
+{
+	 mpu6050_init();
+	
+	uart_init();
+	float cx,cy,cz;
+	char dx[10],dy[10],dz[10];
+	char px[10];
+	int ax,ay,az;
+	
+    //int intdata=179;
+	//char data[10] ;
+	
+
+    while (1) 
+    {
+		mpu6050_getRawData(&ax,&ay,&az);
+		cx=(float)ax/8192.0;
+		cy=(float)ay/8192.0;
+		cz=(float)az/8192.0;
+		float sx=pow(cx,2);
+		float sy=pow(cy,2);
+		float sz=pow(cz,2);
+		
+		//data=uart_receive();
+		dtostrf(cx,10,4,dx);
+		dtostrf(cy,10,4,dy);
+		dtostrf(cz,10,4,dz);
+		float pitch=(atan(cx/sqrt(sy + sz)))*(180/3.1415);
+		dtostrf(pitch,10,2,px);
+		usart_transmit_string(px);
+		//usart_transmit_string(dx);
+		usart_transmit_string("         ");
+		/*usart_transmit_string(dy);
+		usart_transmit_string("         ");
+		usart_transmit_string(dz);
+		usart_transmit_string("         ");*/
+		//_delay_ms(50);
+    }
+}
